@@ -12,6 +12,7 @@ interface HfDumpReadyStepProps {
   onWriteToBlank: (expectedBlank: BlankType) => void;
   onBack: () => void;
   recommendedBlank: BlankType | null;
+  onSave?: (name: string) => Promise<void>;
 }
 
 export function HfDumpReadyStep({
@@ -21,10 +22,26 @@ export function HfDumpReadyStep({
   onWriteToBlank,
   onBack,
   recommendedBlank,
+  onSave,
 }: HfDumpReadyStepProps) {
   const { notify } = useNotifications();
   const [revealStatus, setRevealStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [eraseStatus, setEraseStatus] = useState<'idle' | 'confirming' | 'loading' | 'done' | 'error'>('idle');
+  const [saveName, setSaveName] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+
+  const handleSave = async () => {
+    if (!onSave || !saveName.trim()) return;
+    setSaveStatus('loading');
+    try {
+      await onSave(saveName.trim());
+      setSaveStatus('done');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
   const [eraseMsg, setEraseMsg] = useState('');
 
   useEffect(() => {
@@ -122,6 +139,36 @@ export function HfDumpReadyStep({
         )}
         {revealStatus === 'error' && (
           <InlineNotice variant="error">Could not open file manager.</InlineNotice>
+        )}
+
+        {/* Save card */}
+        {onSave && (
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Save as..."
+              value={saveName}
+              onChange={e => setSaveName(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+              }}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleSave}
+              loading={saveStatus === 'loading'}
+              disabled={!saveName.trim() || saveStatus === 'done'}
+            >
+              {saveStatus === 'done' ? 'Saved ✓' : saveStatus === 'error' ? 'Error' : 'Save'}
+            </Button>
+          </div>
         )}
 
         {/* Actions */}

@@ -749,9 +749,10 @@ pub fn build_iclass_dump_with_key(key: &str) -> String {
     format!("hf iclass dump -k {}", key)
 }
 
-/// iCLASS: wipe card to factory defaults using leaked master key (key index 0).
+/// iCLASS: write zeroes to credential blocks 6-9 using leaked master key.
+/// There is no single wipe command; this restores a blank-credential dump.
 pub fn build_iclass_wipe() -> &'static str {
-    "hf iclass wipe --ki 0"
+    "hf iclass wrbl --blk 6 -d 0000000000000000 --ki 0"
 }
 
 /// iCLASS Elite: simulate tag at a real reader to collect MACs for key recovery.

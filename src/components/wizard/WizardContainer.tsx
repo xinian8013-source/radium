@@ -175,6 +175,20 @@ export function WizardContainer() {
             recommendedBlank={wizard.context.recommendedBlank}
             onWriteToBlank={(blank) => wizard.skipToBlank(blank)}
             onBack={wizard.backToScan}
+            onSave={async (name: string) => {
+              const { saveCard } = await import('../../lib/api');
+              await saveCard({
+                name,
+                cardType: wizard.context.cardType ?? '',
+                frequency: wizard.context.frequency ?? '',
+                uid: wizard.context.cardData?.uid ?? '',
+                raw: wizard.context.cardData?.raw ?? '',
+                decoded: JSON.stringify(wizard.context.cardData?.decoded ?? {}),
+                cloneable: wizard.context.cloneable,
+                recommendedBlank: wizard.context.recommendedBlank ?? '',
+                createdAt: new Date().toISOString(),
+              });
+            }}
           />
         );
       case 'WaitingForBlank':
