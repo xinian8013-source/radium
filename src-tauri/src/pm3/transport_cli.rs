@@ -78,57 +78,13 @@ impl CliTransportBatch {
         }
     }
 
-    /// Try the bundled sidecar binary first.
-    async fn try_sidecar(&self, cmd: &str) -> Result<String, AppError> {
-        let sidecar = self
-            .app
-            .shell()
-            .sidecar("binaries/proxmark3")
-            .map_err(|e| AppError::CommandFailed(format!("Sidecar not available: {}", e)))?;
-
-        let output_future = sidecar
-            .args(["-p", &self.port, "-f", "-c", cmd])
-            .output();
-
-        let output = match timeout(DEFAULT_TIMEOUT, output_future).await {
-            Err(_) => {
-                return Err(AppError::Timeout(format!(
-                    "PM3 command timed out after {}s: {}",
-                    DEFAULT_TIMEOUT.as_secs(),
-                    cmd
-                )));
-            }
-            Ok(Err(e)) => {
-                return Err(AppError::CommandFailed(format!(
-                    "Failed to run sidecar: {}",
-                    e
-                )));
-            }
-            Ok(Ok(output)) => output,
-        };
-
-        let code = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        match code {
-            0 => Ok(strip_ansi(&stdout)),
-            -5 | 251 => Err(AppError::Timeout(format!(
-                "PM3 timed out running: {}",
-                cmd
-            ))),
-            _ => {
-                let detail = if stderr.is_empty() {
-                    strip_ansi(&stdout)
-                } else {
-                    strip_ansi(&stderr)
-                };
-                Err(AppError::CommandFailed(format!(
-                    "Exit code {}: {}",
-                    code, detail
-                )))
-            }
-        }
+    /// Bundled sidecar disabled on Windows builds.
+    /// Use the external Proxmark3 client configured in Tauri capabilities,
+    /// especially C:\proxmark3\proxmark3.exe.
+    async fn try_sidecar(&self, _cmd: &str) -> Result<String, AppError> {
+        Err(AppError::CommandFailed(
+            "Sidecar disabled; using external C:\\proxmark3\\proxmark3.exe".into(),
+        ))
     }
 
     /// Execute a command via scope name lookup.
@@ -206,14 +162,7 @@ impl CliTransportBatch {
     > {
         let args = ["-p", &self.port, "-f", "-c", cmd];
 
-        // Try sidecar first
-        if let Ok(sidecar_cmd) = self.app.shell().sidecar("binaries/proxmark3") {
-            if let Ok(result) = sidecar_cmd.args(&args).spawn() {
-                return Ok(result);
-            }
-        }
-
-        // Fall back to scope names
+        // Bundled sidecar disabled. Fall back to external scope names only.
         let scope_names = pm3_scope_names();
         let mut first_err: Option<String> = None;
 
